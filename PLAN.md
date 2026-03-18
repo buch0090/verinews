@@ -324,11 +324,13 @@ Mitigate: token trimming, result caching, free tier rate limiting (5/day per IP)
 - Pipeline orchestration (`internal/pipeline`)
 - `verinews analyze <url>` CLI command — working end-to-end ✓
 - Committed and pushed to github.com/buch0090/verinews
+- DB persistence (`internal/store`) — upsert article, save claims/analyses/related, source trust lookup
+- Opposition discovery (`internal/opposition`) — NewsAPI search, returns 3–5 related articles
+- Truth synthesis scoring (`internal/synthesis`) — weighted 0–100 score + label tier
+- Pipeline wired: store + opposition + synthesis all integrated; DB/NewsAPI optional (nil-safe)
+- `analyze` CLI updated: connects to DB/NewsAPI when configured, prints score + related coverage
 
 ### Up Next 🔨
-- DB persistence — save article, claims, and analyses to Postgres
-- Opposition discovery — NewsAPI search for related/opposing articles
-- Truth synthesis score — 0–100 rating from convergence + logic + source signals
 - Web interface — submit form + results page + background pipeline goroutine
 - Railway deploy
 
@@ -340,9 +342,9 @@ Mitigate: token trimming, result caching, free tier rate limiting (5/day per IP)
 |---|---|---|
 | 1 | Scaffold, config, migrations, CLI skeleton | ✅ Done |
 | 2 | Scraper + claims extractor + philosopher analyzers | ✅ Done |
-| 3 | DB persistence + opposition discovery | 🔨 Next |
-| 4 | Truth synthesis scoring | — |
-| 5 | Web interface + Railway deploy | — |
+| 3 | DB persistence + opposition discovery | ✅ Done |
+| 4 | Truth synthesis scoring | ✅ Done |
+| 5 | Web interface + Railway deploy | 🔨 Next |
 
 ## Phase 2
 
