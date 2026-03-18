@@ -311,21 +311,43 @@ Mitigate: token trimming, result caching, free tier rate limiting (5/day per IP)
 
 ---
 
+## Status — 2026-03-18
+
+### Done ✅
+- Project scaffold: cobra CLI, config (viper), Dockerfile, Railway-ready
+- DB schema + goose migrations (articles, claims, analyses, related_articles, source_credibility)
+- Scraper (`internal/scraper`) — fetch, readability extraction, OG metadata
+- LLM client (`internal/llm`) — OpenAI JSON mode wrapper, token trimming
+- Claims extractor (`internal/claims`) — structured claim extraction via LLM
+- All 4 philosopher analyzers (`internal/analyzer`) — Socratic, Aristotelian, Platonic, Stoic
+- Concurrent analyzer execution via `errgroup`
+- Pipeline orchestration (`internal/pipeline`)
+- `verinews analyze <url>` CLI command — working end-to-end ✓
+- Committed and pushed to github.com/buch0090/verinews
+
+### Up Next 🔨
+- DB persistence — save article, claims, and analyses to Postgres
+- Opposition discovery — NewsAPI search for related/opposing articles
+- Truth synthesis score — 0–100 rating from convergence + logic + source signals
+- Web interface — submit form + results page + background pipeline goroutine
+- Railway deploy
+
+---
+
 ## Phase 1 MVP
 
-| Week | Goal |
-|---|---|
-| 1 | Scaffold: cobra CLI, config, goose migrations, sqlc setup, River wired |
-| 2 | ScrapeJob + ExtractClaimsJob + basic web submit → poll flow |
-| 3 | SocraticAnalyzer + AristotelianAnalyzer + report page |
-| 4 | OppositionDiscoveryJob + basic convergence score |
-| 5 | CLI `analyze` command, polish, rate limiting, Railway deploy |
+| # | Goal | Status |
+|---|---|---|
+| 1 | Scaffold, config, migrations, CLI skeleton | ✅ Done |
+| 2 | Scraper + claims extractor + philosopher analyzers | ✅ Done |
+| 3 | DB persistence + opposition discovery | 🔨 Next |
+| 4 | Truth synthesis scoring | — |
+| 5 | Web interface + Railway deploy | — |
 
 ## Phase 2
 
-- PlatonicAnalyzer + StoicAnalyzer
 - Source credibility seed data
-- Full truth scoring weights
+- Full truth scoring weight tuning
 - SSE live pipeline progress
 - Auth + tiered usage
 
