@@ -1,0 +1,6 @@
+.env
+verinews
+*.exe
+
+# sqlc generated
+internal/db/generated/
