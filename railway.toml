@@ -3,7 +3,6 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "verinews migrate up && verinews web"
 healthcheckPath = "/healthz"
 healthcheckTimeout = 60
 restartPolicyType = "on_failure"

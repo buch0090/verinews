@@ -9,4 +9,4 @@ FROM alpine:latest
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /app/verinews /usr/local/bin/
 EXPOSE 8080
-CMD ["verinews", "web"]
+CMD ["sh", "-c", "verinews migrate up && verinews web"]
