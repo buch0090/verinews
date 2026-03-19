@@ -36,6 +36,9 @@ func Init() {
 	}
 
 	if C.AppPort == "" {
+		C.AppPort = viper.GetString("PORT") // Railway injects PORT
+	}
+	if C.AppPort == "" {
 		C.AppPort = "8080"
 	}
 	if C.AppEnv == "" {

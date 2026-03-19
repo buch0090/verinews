@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/verinews/verinews/internal/analyzer"
 	"github.com/verinews/verinews/internal/claims"
@@ -22,6 +24,29 @@ type RelatedArticle struct {
 	ClaimContradictionScore float64
 }
 
+type ArticleRow struct {
+	ID         int64
+	URL        string
+	Title      string
+	Publisher  string
+	Author     string
+	Status     string
+	TruthScore float64
+	CreatedAt  time.Time
+}
+
+type ClaimRow struct {
+	Text            string
+	Type            string
+	EvidencePresent bool
+	ConfidenceScore float64
+}
+
+type AnalysisRow struct {
+	Mode   string
+	Output json.RawMessage
+}
+
 type Store struct {
 	db *sql.DB
 }
@@ -35,7 +60,31 @@ func URLHash(rawURL string) string {
 	return fmt.Sprintf("%x", h)
 }
 
-// UpsertArticle creates or returns the existing article. Returns (id, isNew, error).
+// CreatePending inserts an article with status='queued' and returns its ID.
+// If the article already exists, returns the existing ID.
+func (s *Store) CreatePending(ctx context.Context, rawURL string) (int64, error) {
+	hash := URLHash(rawURL)
+
+	var id int64
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM articles WHERE url_hash = $1`, hash).Scan(&id)
+	if err == nil {
+		return id, nil
+	}
+	if err != sql.ErrNoRows {
+		return 0, fmt.Errorf("checking article: %w", err)
+	}
+
+	err = s.db.QueryRowContext(ctx,
+		`INSERT INTO articles (url, url_hash, status) VALUES ($1, $2, 'queued') RETURNING id`,
+		rawURL, hash,
+	).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("inserting pending article: %w", err)
+	}
+	return id, nil
+}
+
+// UpsertArticle creates or updates the article with scraped content. Returns (id, isNew, error).
 func (s *Store) UpsertArticle(ctx context.Context, a *scraper.Result) (int64, bool, error) {
 	hash := URLHash(a.URL)
 
@@ -44,7 +93,13 @@ func (s *Store) UpsertArticle(ctx context.Context, a *scraper.Result) (int64, bo
 		`SELECT id FROM articles WHERE url_hash = $1`, hash,
 	).Scan(&id)
 	if err == nil {
-		return id, false, nil
+		// Exists — update with scraped content (e.g. created by CreatePending first)
+		_, err = s.db.ExecContext(ctx,
+			`UPDATE articles SET title=$1, publisher=$2, author=$3, published_at=$4,
+			 raw_content=$5, cleaned_content=$6, status='processing' WHERE id=$7`,
+			a.Title, a.Publisher, a.Author, a.PublishedAt, a.RawHTML, a.Content, id,
+		)
+		return id, false, err
 	}
 	if err != sql.ErrNoRows {
 		return 0, false, fmt.Errorf("checking article: %w", err)
@@ -134,4 +189,121 @@ func (s *Store) SourceTrustScore(ctx context.Context, rawURL string) float64 {
 		return 0.5
 	}
 	return score
+}
+
+func (s *Store) ListArticles(ctx context.Context, limit int) ([]ArticleRow, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, url, title, publisher, author, status, truth_score, created_at
+		 FROM articles WHERE status = 'complete'
+		 ORDER BY created_at DESC LIMIT $1`, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []ArticleRow
+	for rows.Next() {
+		var row ArticleRow
+		var title, publisher, author sql.NullString
+		var truthScore sql.NullFloat64
+		if err := rows.Scan(&row.ID, &row.URL, &title, &publisher, &author, &row.Status, &truthScore, &row.CreatedAt); err != nil {
+			return nil, err
+		}
+		row.Title = title.String
+		row.Publisher = publisher.String
+		row.Author = author.String
+		row.TruthScore = truthScore.Float64
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+func (s *Store) GetArticle(ctx context.Context, id int64) (*ArticleRow, error) {
+	var row ArticleRow
+	var title, publisher, author sql.NullString
+	var truthScore sql.NullFloat64
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, url, title, publisher, author, status, truth_score, created_at
+		 FROM articles WHERE id = $1`, id,
+	).Scan(&row.ID, &row.URL, &title, &publisher, &author, &row.Status, &truthScore, &row.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	row.Title = title.String
+	row.Publisher = publisher.String
+	row.Author = author.String
+	row.TruthScore = truthScore.Float64
+	return &row, nil
+}
+
+func (s *Store) GetClaims(ctx context.Context, articleID int64) ([]ClaimRow, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT claim_text, claim_type, evidence_present, confidence_score
+		 FROM claims WHERE article_id = $1 ORDER BY id`, articleID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []ClaimRow
+	for rows.Next() {
+		var r ClaimRow
+		var claimType sql.NullString
+		if err := rows.Scan(&r.Text, &claimType, &r.EvidencePresent, &r.ConfidenceScore); err != nil {
+			return nil, err
+		}
+		r.Type = claimType.String
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
+func (s *Store) GetAnalyses(ctx context.Context, articleID int64) ([]AnalysisRow, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT philosopher_mode, json_output
+		 FROM analyses WHERE article_id = $1 ORDER BY philosopher_mode`, articleID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []AnalysisRow
+	for rows.Next() {
+		var r AnalysisRow
+		if err := rows.Scan(&r.Mode, &r.Output); err != nil {
+			return nil, err
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
+func (s *Store) GetRelatedArticlesByID(ctx context.Context, articleID int64) ([]RelatedArticle, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT url, title, publisher, snippet, relation_type, narrative_distance_score, claim_contradiction_score
+		 FROM related_articles WHERE article_id = $1 ORDER BY id`, articleID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []RelatedArticle
+	for rows.Next() {
+		var r RelatedArticle
+		var title, publisher, snippet, relationType sql.NullString
+		if err := rows.Scan(&r.URL, &title, &publisher, &snippet, &relationType,
+			&r.NarrativeDistanceScore, &r.ClaimContradictionScore); err != nil {
+			return nil, err
+		}
+		r.Title = title.String
+		r.Publisher = publisher.String
+		r.Snippet = snippet.String
+		r.RelationType = relationType.String
+		result = append(result, r)
+	}
+	return result, rows.Err()
 }

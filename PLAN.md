@@ -329,9 +329,12 @@ Mitigate: token trimming, result caching, free tier rate limiting (5/day per IP)
 - Truth synthesis scoring (`internal/synthesis`) — weighted 0–100 score + label tier
 - Pipeline wired: store + opposition + synthesis all integrated; DB/NewsAPI optional (nil-safe)
 - `analyze` CLI updated: connects to DB/NewsAPI when configured, prints score + related coverage
+- Web interface (`internal/api`) — chi router, submit form, report page, background pipeline goroutine
+  - POST /analyze → creates pending DB record, launches goroutine, redirects to /articles/:id/report
+  - GET /articles/:id/report → pending state (auto-refresh every 3s) or full report when complete
+  - Store read methods: GetArticle, GetClaims, GetAnalyses, GetRelatedArticlesByID, CreatePending
 
 ### Up Next 🔨
-- Web interface — submit form + results page + background pipeline goroutine
 - Railway deploy
 
 ---
@@ -344,7 +347,7 @@ Mitigate: token trimming, result caching, free tier rate limiting (5/day per IP)
 | 2 | Scraper + claims extractor + philosopher analyzers | ✅ Done |
 | 3 | DB persistence + opposition discovery | ✅ Done |
 | 4 | Truth synthesis scoring | ✅ Done |
-| 5 | Web interface + Railway deploy | 🔨 Next |
+| 5 | Web interface + Railway deploy | 🔨 In progress (web done, deploy next) |
 
 ## Phase 2
 

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VeriNews — Philosophical Truth Engine</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;color:#1e293b;min-height:100vh}
+    header{background:#0f172a;color:#fff;padding:1.25rem 2rem;display:flex;align-items:baseline;gap:1rem}
+    header h1{font-size:1.25rem;font-weight:700;letter-spacing:-0.02em}
+    header span{color:#64748b;font-size:0.875rem}
+    main{max-width:600px;margin:4rem auto;padding:0 1.5rem}
+    .card{background:#fff;border-radius:12px;padding:2.5rem;box-shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05)}
+    h2{font-size:1.25rem;font-weight:600;margin-bottom:.5rem}
+    .desc{color:#64748b;margin-bottom:1.75rem;line-height:1.6;font-size:.9375rem}
+    .row{display:flex;gap:.625rem}
+    input[type=url]{flex:1;border:1.5px solid #e2e8f0;border-radius:8px;padding:.75rem 1rem;font-size:1rem;outline:none;transition:border-color .15s;color:#1e293b}
+    input[type=url]:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+    button{background:#6366f1;color:#fff;border:none;border-radius:8px;padding:.75rem 1.375rem;font-size:.9375rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+    button:hover{background:#4f46e5}
+    .divider{margin:1.75rem 0 1.25rem;border:none;border-top:1px solid #f1f5f9}
+    .tiers-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:.875rem}
+    .tiers{display:grid;grid-template-columns:1fr 1fr;gap:.5rem .75rem}
+    .tier{display:flex;align-items:center;gap:.5rem;font-size:.8125rem;color:#475569}
+    .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+    .philosophers{margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #f1f5f9}
+    .philosophers p{font-size:.8125rem;color:#94a3b8;line-height:1.7}
+    .philosophers strong{color:#475569}
+    .recent{margin-top:1.5rem}
+    .recent h2{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:.875rem}
+    .report-row{display:flex;align-items:center;gap:.875rem;padding:.625rem 0;border-bottom:1px solid #f8fafc;text-decoration:none;color:inherit}
+    .report-row:last-child{border-bottom:none}
+    .report-row:hover .report-title{color:#6366f1}
+    .score-badge{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0}
+    .report-body{flex:1;min-width:0}
+    .report-title{font-size:.9rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .15s}
+    .report-meta{font-size:.75rem;color:#94a3b8;margin-top:.15rem}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>VeriNews</h1>
+    <span>philosophical truth engine</span>
+  </header>
+  <main>
+    <div class="card">
+      <h2>Analyze a news article</h2>
+      <p class="desc">Paste a URL. Four philosopher lenses examine the article and produce a 0–100 truth confidence score.</p>
+      <form action="/analyze" method="POST">
+        <div class="row">
+          <input type="url" name="url" placeholder="https://..." required autofocus>
+          <button type="submit">Analyze →</button>
+        </div>
+      </form>
+      <hr class="divider">
+      <div class="tiers-label">Score tiers</div>
+      <div class="tiers">
+        <div class="tier"><div class="dot" style="background:#22c55e"></div>81–100 &nbsp;Well-Supported</div>
+        <div class="tier"><div class="dot" style="background:#3b82f6"></div>61–80 &nbsp;Mostly Supported</div>
+        <div class="tier"><div class="dot" style="background:#f59e0b"></div>31–60 &nbsp;Disputed</div>
+        <div class="tier"><div class="dot" style="background:#ef4444"></div>0–30 &nbsp;Highly Contested</div>
+      </div>
+      <div class="philosophers">
+        <p>
+          <strong>Socratic</strong> — exposes assumptions &nbsp;·&nbsp;
+          <strong>Aristotelian</strong> — tests logic &nbsp;·&nbsp;
+          <strong>Platonic</strong> — seeks ideal truth &nbsp;·&nbsp;
+          <strong>Stoic</strong> — measures emotional manipulation
+        </p>
+      </div>
+    </div>
+
+    {{if .Recent}}
+    <div class="card recent">
+      <h2>Previous Reports</h2>
+      {{range .Recent}}
+      <a href="/articles/{{.ID}}/report" class="report-row">
+        <div class="score-badge" style="background:{{scoreColor .TruthScore}}">{{printf "%.0f" .TruthScore}}</div>
+        <div class="report-body">
+          <div class="report-title">{{if .Title}}{{.Title}}{{else}}{{.URL}}{{end}}</div>
+          <div class="report-meta">
+            {{if .Publisher}}{{.Publisher}} &nbsp;·&nbsp; {{end}}{{scoreLabel .TruthScore}}
+          </div>
+        </div>
+      </a>
+      {{end}}
+    </div>
+    {{end}}
+  </main>
+</body>
+</html>
